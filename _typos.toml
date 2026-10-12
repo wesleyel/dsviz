@@ -1,0 +1,6 @@
+[default.extend-words]
+# Short DSL keywords and identifiers.
+hl = "hl"
+
+[files]
+extend-exclude = ["*.wasm", "*.png", "plugin/Cargo.lock"]

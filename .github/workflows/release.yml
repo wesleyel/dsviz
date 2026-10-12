@@ -1,0 +1,34 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: typst-community/setup-typst@v4
+      - name: Tag matches typst.toml
+        run: scripts/check-version.sh
+      - name: Compile examples against the staged bundle
+        run: make gallery examples
+      - name: Archive the bundle
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          tar -C build/pkg/preview -czf "dsviz-$version.tar.gz" "dsviz/$version"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          notes=$(awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" {on=1; next}
+            on && /^## \[/ {exit}
+            on {print}' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" "dsviz-$version.tar.gz" \
+            --title "dsviz $version" --notes "$notes"

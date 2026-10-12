@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  plugin:
+    name: Plugin (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: plugin
+      - name: Format
+        run: cargo fmt --check
+        working-directory: plugin
+      - name: Unit tests
+        run: cargo test
+        working-directory: plugin
+      - name: Build wasm
+        run: cargo build --release --target wasm32-unknown-unknown
+        working-directory: plugin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsviz-wasm
+          path: plugin/target/wasm32-unknown-unknown/release/dsviz.wasm
+
+  typst:
+    name: Typst ${{ matrix.typst }} (${{ matrix.wasm }} wasm)
+    needs: plugin
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The minimum version declared in typst.toml, and the latest release.
+        typst: ["0.13.1", "latest"]
+        wasm: [committed, fresh]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: typst-community/setup-typst@v4
+        with:
+          typst-version: ${{ matrix.typst }}
+      - name: Use freshly built plugin
+        if: matrix.wasm == 'fresh'
+        uses: actions/download-artifact@v4
+        with:
+          name: dsviz-wasm
+          path: src
+      - name: Versions are consistent
+        run: scripts/check-version.sh
+      - name: Compile gallery, README snippets and examples
+        run: make gallery examples
+      - uses: actions/upload-artifact@v4
+        if: matrix.typst == 'latest' && matrix.wasm == 'fresh'
+        with:
+          name: rendered
+          path: build/
+
+  typos:
+    name: Spelling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crate-ci/typos@v1

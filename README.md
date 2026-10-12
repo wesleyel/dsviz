@@ -8,7 +8,7 @@ Layout runs in a small Rust/WASM plugin, while every label is typeset and
 measured by Typst itself, so diagrams line up with any font, support
 subscripts and match your document's text size.
 
-![Trees](docs/images/trees.png)
+![Huffman-style binary tree with 0/1 edge labels, a red-black tree with NIL leaves, a decision tree with interval boxes, a forest and a B+ tree with linked leaves](docs/images/trees.png)
 
 ## Quick start
 
@@ -29,7 +29,7 @@ A
 ```
 ````
 
-![Threaded binary tree](docs/images/quickstart.png)
+![In-order threaded binary tree with dashed thread arrows and NULL ends](docs/images/quickstart.png)
 
 You can also call the function directly, with a raw block or a string:
 
@@ -107,11 +107,11 @@ Sources for all images are in [`examples/`](https://github.com/wesleyel/dsviz/tr
 
 **Lists, arrays, stacks, queues and tables**
 
-![Linear structures](docs/images/linear.png)
+![Singly, circular and doubly linked lists, an adjacency list, sorting passes in arrays, a stack with a top pointer, a circular queue and a KMP next table](docs/images/linear.png)
 
 **Graphs, matrices and adjacency structures**
 
-![Graphs](docs/images/graphs.png)
+![Weighted undirected graph in a circle layout, a layered digraph, a digraph with fixed coordinates, an adjacency matrix, an orthogonal list and an adjacency multilist](docs/images/graphs.png)
 
 ## How it works
 

@@ -669,10 +669,10 @@ pub fn orthlist(doc: &Doc, cv: &mut Canvas, multi: bool) -> Res<()> {
             ins.sort_by_key(|&i| g.edges[i].u);
             // firstout：域 2；firstin：域 1
             let vb = &vboxes[v];
-            let fo = p(vb.cell_x(2), vb.y);
+            let first_out = p(vb.cell_x(2), vb.y);
             match outs.first() {
-                Some(&a) => cv.arrow(fo, p(eboxes[a].x, eboxes[a].y), pen),
-                None => null_mark(cv, fo, pw, h),
+                Some(&a) => cv.arrow(first_out, p(eboxes[a].x, eboxes[a].y), pen),
+                None => null_mark(cv, first_out, pw, h),
             }
             let fi = p(vb.cell_x(1), vb.y);
             match ins.first() {

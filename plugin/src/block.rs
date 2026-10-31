@@ -1,6 +1,7 @@
 //! block：方框图（数据通路、存储层次、网络拓扑、I/O 结构）
 
 use crate::parse::{err, fail, Attrs, Doc, Elem, Line, Res, Tok};
+use crate::place::{Soft, END_TS, MID_TS, START_TS};
 use crate::svg::{line_color, line_width, p, paint, Anchor, Canvas, Pen, INK, P};
 use crate::timing::{clean, polygon};
 use std::collections::HashMap;
@@ -521,6 +522,67 @@ fn auto_both(a: &Node, b: &Node, em: f64) -> (Side, P, Side, P) {
     (sa, a.port(sa, 0.5), sb, b.port(sb, 0.5))
 }
 
+/// 一条折线边的两端：所在侧、端点，以及端点是否自动选定。
+struct Plan {
+    ends: [(Side, P); 2],
+    free: [bool; 2],
+}
+
+/// 多条边自动落在同一端口时分开，否则它们会重叠成一根线，看起来像总线。
+fn spread_ports(edges: &[Edge], nodes: &[Node], plans: &mut [Option<Plan>], em: f64) {
+    let mut seen: Vec<(usize, usize)> = Vec::new();
+    for i in 0..plans.len() {
+        for end in 0..2 {
+            let Some(pl) = &plans[i] else { continue };
+            if !pl.free[end] || seen.contains(&(i, end)) {
+                continue;
+            }
+            let (side, at) = pl.ends[end];
+            let node = if end == 0 {
+                edges[i].a.node
+            } else {
+                edges[i].b.node
+            };
+            // 同一结点、同一侧、端点重合的自动端
+            let mut group: Vec<(usize, usize)> = Vec::new();
+            for (j, other) in plans.iter().enumerate() {
+                let Some(q) = other else { continue };
+                for k in 0..2 {
+                    let m = if k == 0 {
+                        edges[j].a.node
+                    } else {
+                        edges[j].b.node
+                    };
+                    let (s, a) = q.ends[k];
+                    if q.free[k] && m == node && s == side && a.sub(at).len() < em * 0.3 {
+                        group.push((j, k));
+                    }
+                }
+            }
+            seen.extend(&group);
+            if group.len() < 2 {
+                continue;
+            }
+            // 按对端的位置排序，避免分开后交叉
+            let far = |&(j, k): &(usize, usize)| {
+                let q = plans[j].as_ref().unwrap().ends[1 - k].1;
+                match side {
+                    Side::N | Side::S => q.x,
+                    _ => q.y,
+                }
+            };
+            group.sort_by(|x, y| far(x).partial_cmp(&far(y)).unwrap());
+            let n = group.len() as f64;
+            let step = (0.7 / (n - 1.0)).min(0.34);
+            for (rank, &(j, k)) in group.iter().enumerate() {
+                let f = 0.5 + (rank as f64 - (n - 1.0) / 2.0) * step;
+                let q = nodes[node].port(side, f);
+                plans[j].as_mut().unwrap().ends[k].1 = q;
+            }
+        }
+    }
+}
+
 fn side_of(d: P) -> Side {
     if d.x.abs() >= d.y.abs() {
         if d.x > 0.0 {
@@ -535,115 +597,25 @@ fn side_of(d: P) -> Side {
     }
 }
 
-/// 文字放线段旁边。at：0 靠 a 端，1 中点，2 靠 b 端。
-fn seg_label(cv: &mut Canvas, a: P, b: P, s: &str, at: u8, side: P) {
-    let em = cv.em;
-    let (scale, pad) = (0.8, em * 0.4);
-    let d = b.sub(a);
-    if d.y.abs() < 1e-6 {
-        let y = a.y + side.y.signum() * em * 0.6;
-        let dirx = d.x.signum();
-        let (x, anchor) = match at {
-            1 => ((a.x + b.x) / 2.0, Anchor::Middle),
-            0 => (
-                a.x + dirx * pad,
-                if dirx > 0.0 {
-                    Anchor::Start
-                } else {
-                    Anchor::End
-                },
-            ),
-            _ => (
-                b.x - dirx * pad,
-                if dirx > 0.0 {
-                    Anchor::End
-                } else {
-                    Anchor::Start
-                },
-            ),
-        };
-        cv.text(p(x, y), s, anchor, scale, INK);
-    } else if d.x.abs() < 1e-6 {
-        let diry = d.y.signum();
-        let y = match at {
-            1 => (a.y + b.y) / 2.0,
-            0 => a.y + diry * em * 0.7,
-            _ => b.y - diry * em * 0.9,
-        };
-        let right = side.x >= 0.0;
-        let x = a.x + if right { pad } else { -pad };
-        let anchor = if right { Anchor::Start } else { Anchor::End };
-        cv.text(p(x, y), s, anchor, scale, INK);
-    } else {
-        let (u, v) = match at {
-            1 => (a, b),
-            0 => (a, a.add(d.mul(0.4))),
-            _ => (b.sub(d.mul(0.4)), b),
-        };
-        cv.edge_label(u, v, s, side.x >= 0.0);
-    }
-}
-
-fn longest_seg(pts: &[P]) -> usize {
-    (0..pts.len() - 1)
-        .max_by(|&i, &j| {
-            let (u, v) = (pts[i + 1].sub(pts[i]).len(), pts[j + 1].sub(pts[j]).len());
-            u.partial_cmp(&v).unwrap()
-        })
-        .unwrap()
-}
-
+/// 边上的文字交给统一的避让：一段文字放中部，两段分别靠两端。
 fn draw_labels(cv: &mut Canvas, pts: &[P], labels: &[String]) {
-    let n = pts.len();
-    let em = cv.em;
-    // 默认放上方 / 右方；转弯处放到拐向的另一侧，避开折线本身。
-    let dflt = p(1.0, -1.0);
-    match labels {
-        [] => {}
-        [s] => {
-            let i = longest_seg(pts);
-            let side = if i + 2 < n {
-                pts[i + 1].sub(pts[i + 2])
-            } else if i > 0 {
-                pts[i].sub(pts[i - 1])
-            } else {
-                dflt
-            };
-            seg_label(cv, pts[i], pts[i + 1], s, 1, nonzero(side, dflt));
-        }
-        [s1, s2] => {
-            let side_a = if n > 2 { pts[1].sub(pts[2]) } else { dflt };
-            let side_b = if n > 2 {
-                pts[n - 2].sub(pts[n - 3])
-            } else {
-                dflt
-            };
-            let mut side_b = nonzero(side_b, dflt);
-            if n == 2 {
-                let d = pts[1].sub(pts[0]);
-                let room = if d.y.abs() < 1e-6 {
-                    let need = cv.ws(s1, 0.8) + cv.ws(s2, 0.8) + em * 1.6;
-                    need <= d.len()
-                } else {
-                    d.len() >= em * 3.2
-                };
-                if !room {
-                    side_b = p(-1.0, 1.0);
-                }
-            }
-            seg_label(cv, pts[0], pts[1], s1, 0, nonzero(side_a, dflt));
-            seg_label(cv, pts[n - 2], pts[n - 1], s2, 2, side_b);
-        }
-        _ => unreachable!(),
+    let slots: [&[f64]; 2] = if labels.len() == 1 {
+        [&MID_TS, &[]]
+    } else {
+        [&START_TS, &END_TS]
+    };
+    for (s, ts) in labels.iter().zip(slots) {
+        cv.soft_label(Soft {
+            text: s.clone(),
+            scale: 0.8,
+            color: INK.to_string(),
+            path: pts.to_vec(),
+            ts: ts.to_vec(),
+            side: p(1.0, -1.0),
+            fixed: None,
+            inline_first: false,
+        });
     }
-}
-
-/// 只取方向中非零的分量，另一分量用默认值。
-fn nonzero(d: P, dflt: P) -> P {
-    p(
-        if d.x.abs() > 1e-6 { d.x } else { dflt.x },
-        if d.y.abs() > 1e-6 { d.y } else { dflt.y },
-    )
 }
 
 fn cloud_path(n: &Node) -> (String, Vec<P>) {
@@ -838,6 +810,7 @@ pub fn block(doc: &Doc, cv: &mut Canvas) -> Res<()> {
 
     let stub = em * 1.2;
     let mut paths: Vec<Vec<P>> = Vec::new();
+    let mut plans: Vec<Option<Plan>> = Vec::new();
     let mut used: Vec<(usize, Side)> = Vec::new();
     for e in &edges {
         let (na, nb) = (&nodes[e.a.node], &nodes[e.b.node]);
@@ -848,6 +821,7 @@ pub fn block(doc: &Doc, cv: &mut Canvas) -> Res<()> {
             used.push((e.a.node, side_of(b.sub(a))));
             used.push((e.b.node, side_of(a.sub(b))));
             paths.push(vec![a, b]);
+            plans.push(None);
             continue;
         }
         let (sa, a, sb, b) = match (fa, fb) {
@@ -864,7 +838,18 @@ pub fn block(doc: &Doc, cv: &mut Canvas) -> Res<()> {
         };
         used.push((e.a.node, sa));
         used.push((e.b.node, sb));
-        paths.push(clean(&route(a, sa.dir(), b, sb.dir(), stub)));
+        paths.push(Vec::new());
+        plans.push(Some(Plan {
+            ends: [(sa, a), (sb, b)],
+            free: [fa.is_none(), fb.is_none()],
+        }));
+    }
+    spread_ports(&edges, &nodes, &mut plans, em);
+    for (path, plan) in paths.iter_mut().zip(&plans) {
+        if let Some(pl) = plan {
+            let [(sa, a), (sb, b)] = pl.ends;
+            *path = clean(&route(a, sa.dir(), b, sb.dir(), stub));
+        }
     }
     for (i, s) in used {
         nodes[i].used.push(s);

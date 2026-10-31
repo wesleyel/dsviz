@@ -9,6 +9,7 @@ mod graph;
 mod grid;
 mod linear;
 pub mod parse;
+mod place;
 pub mod svg;
 mod timing;
 mod tree;
@@ -42,9 +43,30 @@ pub const KINDS: &[&str] = &[
 
 /// 解析并绘制，返回 SVG 文本。
 pub fn run(src: &str, cfg: &Config, m: &Meas) -> Result<String, String> {
+    Ok(draw(src, cfg, m)?.finish())
+}
+
+/// 标签放不下时图本身太挤：逐级放大间距重排，引线只作最后手段。
+fn draw<'a>(src: &str, cfg: &'a Config, m: &'a Meas) -> Result<Canvas<'a>, String> {
+    let mut best: Option<Canvas<'a>> = None;
+    for k in [1.0, 1.3, 1.7, 2.2] {
+        let cv = draw_at(src, cfg, m, k)?;
+        let better = best.as_ref().is_none_or(|b| cv.leaders() < b.leaders());
+        if better {
+            best = Some(cv);
+        }
+        if best.as_ref().is_some_and(|b| b.leaders() == 0) {
+            break;
+        }
+    }
+    Ok(best.expect("drawn at least once"))
+}
+
+fn draw_at<'a>(src: &str, cfg: &'a Config, m: &'a Meas, k: f64) -> Result<Canvas<'a>, String> {
     let doc = parse::parse(src)?;
     svg::set_colored(cfg.colored);
     let mut cv = Canvas::new(cfg, m);
+    cv.sp *= k;
     match doc.kind.as_str() {
         "tree" | "forest" => tree::tree(&doc, &mut cv)?,
         "bintree" => tree::bintree(&doc, &mut cv, false)?,
@@ -74,7 +96,8 @@ pub fn run(src: &str, cfg: &Config, m: &Meas) -> Result<String, String> {
             )
         }
     }
-    Ok(cv.finish())
+    cv.resolve_labels();
+    Ok(cv)
 }
 
 /// 第一遍：收集要量宽度的文字。
@@ -213,6 +236,51 @@ mod tests {
         assert!(draw("gray").unwrap().contains("#c4c4c4"));
         assert!(draw("color").unwrap().contains("#c0392b"));
         assert!(draw("neon").is_err());
+    }
+
+    /// 按字符数估字宽，走一遍 Canvas 的自检。
+    fn issues(src: &str) -> Vec<String> {
+        let cfg_text: String = labels_of(src)
+            .unwrap()
+            .lines()
+            .map(|s| format!("{}\t{}\n", s.chars().count() as f64 * 5.5, s))
+            .collect();
+        let cfg = Config::parse(&format!("size=10\n{}", cfg_text)).unwrap();
+        let m = Meas::from_cfg(&cfg);
+        let issues = draw(src, &cfg, &m).unwrap().issues();
+        issues
+    }
+
+    #[test]
+    fn labels_never_collide() {
+        let cases = [
+            "digraph\nv_1 @0,1.4\nv_2 @1.5,0.3\nv_3 @1.5,2.5\nv_4 @3.4,0\nv_5 @3,2.9\nv_6 @4.8,1.4\nv_7 @6.4,1.4\nv_1 -> v_2 \"a=3\"\nv_1 -> v_3 \"b=5\"\nv_2 -> v_4 \"c=6\"\nv_3 -> v_4 \"d=4\"\nv_2 -> v_5 \"e=2\"\nv_3 -> v_5 \"f=3\"\nv_4 -> v_6 \"g=5\"\nv_5 -> v_6 \"h=4\"\nv_5 -> v_7 \"j=7\"\nv_6 -> v_7 \"k=3\"\nv_4 -> v_7 \"m=4\"",
+            "digraph layout=circle\nA -> B 11\nA -> C 22\nA -> D 33\nA -> E 44\nB -> C 55\nB -> D 66\nB -> E 77\nC -> D 88\nC -> E 99\nD -> E 10",
+            "digraph dir=lr\nA -> B 12\nA -> C 13\nA -> D 14\nA -> E 15\nB -> F 21\nC -> F 22\nD -> F 23\nE -> F 24",
+            "digraph\nA -> B 3\nB -> A 4\nA -> C 5\nC -> A 6\nB -> C 7\nC -> C 1",
+            "graph layout=circle\nA - B 5\nB - C 2\nC - D 4\nD - A 7\nA - C 3\nB - D 6\nA - A 1",
+            "block\nA box @0,0\nB box @3,0\nC box @0,2\nD box @3,2\nA -> D \"地址线\" [straight]\nC -> B \"数据线\" [straight]\nA -> B \"读\"\nC -> D \"写\"",
+            "block\nR1 router @0,0\nR2 router @1.2,0\nR3 router @0.6,1\nR1 - R2 \"192.168.1.1\" \"192.168.1.2\"\nR1 - R3 \"10.0.0.1/30\" \"10.0.0.2/30\"\nR2 - R3 \"10.0.1.1/30\" \"10.0.1.2/30\"",
+            "block\nS switch @1,0\nH1 host @0,1.5\nH2 host @1,1.5\nH3 host @2,1.5\nS - H1\nS - H2\nS - H3",
+            "ladder actors=A,B\nA -> B \"seq=0\"\nB -> A \"ack=1\" @1\nA -> B \"seq=1\" @2\nB -> A \"ack=2\" @2",
+            "ladder actors=A,B,C\nA -> C \"long message text\"\nnote B \"state\"\nC -> A \"reply\"\nA -x B \"lost\"",
+            "tree\nroot\n  long-label: a\n  another-long: b\n  third-long-one: c\n  x: d",
+            "matrix labels=alpha,beta,gamma\n1 2 3\n4 5 6\n7 8 9",
+            "array index=0\n1[^i,^j] 2[^low] 3[^mid] 4[^high]",
+            "list\nL: a[^p,^q] -> b[^rear] -> c[^r] -> ^",
+            "stack index=0 size=4\na[^bottom] b[^mid] c[^top,^topp]",
+            "ring size=5\na[^front] b[^rear] c[^x] d[^y] e[^z]",
+        ];
+        for c in cases {
+            let v = issues(c);
+            assert!(v.is_empty(), "{}\n{:?}", c, v);
+            let cfg = Config::default();
+            let m = Meas::from_cfg(&cfg);
+            // 这两张图的长文字挤在短边上，引线是合理的兜底
+            if !c.contains("192.168") && !c.contains("long-label") {
+                assert_eq!(draw(c, &cfg, &m).unwrap().leaders(), 0, "{}", c);
+            }
+        }
     }
 
     #[test]

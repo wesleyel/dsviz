@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-31
+
+### Changed
+
+- New label engine shared by `graph`, `digraph`, `block`, `ladder`, tree edge labels and `^pointer` names. Labels are placed after everything is drawn: beside their edge when ownership is clear, on the edge over a translucent white mask otherwise, and with a leader line as a last resort.
+- Crowded diagrams respace automatically before a leader line is used, so `spacing` is a minimum.
+- `block` spreads edges that would share a port, so separate links no longer merge into one line.
+- `^pointer` arrows lengthen to keep names apart, and `matrix` columns widen to fit their labels.
+
 ## [0.2.0] - 2026-10-31
 
 ### Added

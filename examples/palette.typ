@@ -1,5 +1,5 @@
 // The same diagrams in both palettes. Regenerate with `make images`.
-#import "@preview/dsviz:0.2.0": ds
+#import "@preview/dsviz:0.2.1": ds
 
 #set page(width: auto, height: auto, margin: 10pt, fill: white)
 #set text(size: 10pt, font: ("Helvetica Neue", "PingFang SC"))

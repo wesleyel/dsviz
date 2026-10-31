@@ -1,5 +1,5 @@
 // One picture with every kind. Regenerate with `make images`.
-#import "@preview/dsviz:0.2.0": ds
+#import "@preview/dsviz:0.2.1": ds
 
 #set page(width: 30cm, height: auto, margin: 8mm, fill: white)
 #set text(size: 8pt)

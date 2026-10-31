@@ -1,6 +1,7 @@
 //! fields（位段）/ pipeline（流水线）/ gantt（甘特图）/ wave（波形）/ ladder（时序图）
 
 use crate::parse::{err, fail, Attrs, Doc, Elem, Line, Res, Tok};
+use crate::place::{Soft, SENDER_TS};
 use crate::svg::{line_color, line_width, p, paint, Anchor, Canvas, Pen, INK, MUTED, P};
 
 /// 小号标注的颜色：比 MUTED 深，黑白打印也看得清。
@@ -1013,13 +1014,6 @@ struct MsgGeom {
     b: P,
 }
 
-fn rect_hits_seg(c: P, hw: f64, hh: f64, a: P, b: P) -> bool {
-    (0..=24).any(|i| {
-        let q = a.add(b.sub(a).mul(i as f64 / 24.0));
-        (q.x - c.x).abs() <= hw && (q.y - c.y).abs() <= hh
-    })
-}
-
 pub fn ladder(doc: &Doc, cv: &mut Canvas) -> Res<()> {
     doc.check_opts(&["actors", "slope"])?;
     let actors = doc
@@ -1215,58 +1209,20 @@ pub fn ladder(doc: &Doc, cv: &mut Canvas) -> Res<()> {
         }
     }
 
-    // 文字压在自己的箭头上（白底断开线条）；挑一处不碰其它文字和箭头的位置。
-    let hh = em * 0.65;
-    let mut placed: Vec<(P, f64)> = Vec::new();
-    for (i, m) in msgs.iter().enumerate() {
-        if m.text.is_empty() {
-            continue;
+    // 消息文字压在自己的箭头上，半透明底不断开线条；放不下时由避让挪开。
+    for (m, g) in msgs.iter().zip(&geom) {
+        if !m.text.is_empty() {
+            cv.soft_label(Soft {
+                text: m.text.clone(),
+                scale: 0.85,
+                color: paint(m.attrs.color).2.to_string(),
+                path: vec![g.a, g.b],
+                ts: SENDER_TS.to_vec(),
+                side: p(0.0, -1.0),
+                fixed: None,
+                inline_first: true,
+            });
         }
-        let g = &geom[i];
-        let hw = cv.ws(&m.text, 0.85) / 2.0 + em * 0.3;
-        let (lo, hi) = (g.a.x.min(g.b.x), g.a.x.max(g.b.x));
-        let mut best: Option<(i32, P)> = None;
-        for t in [0.5, 0.35, 0.65, 0.22, 0.78] {
-            let mut c = g.a.add(g.b.sub(g.a).mul(t));
-            let room = em * 0.3 + hw;
-            if hi - lo >= room * 2.0 {
-                c.x = c.x.clamp(lo + room, hi - room);
-                let u = (c.x - g.a.x) / (g.b.x - g.a.x);
-                c.y = g.a.y + (g.b.y - g.a.y) * u;
-            }
-            let mut bad = 0;
-            for &(q, w) in &placed {
-                if (q.x - c.x).abs() < w + hw && (q.y - c.y).abs() < hh * 2.0 {
-                    bad += 10;
-                }
-            }
-            for (j, o) in geom.iter().enumerate() {
-                if j != i && rect_hits_seg(c, hw, hh, o.a, o.b) {
-                    bad += 1;
-                }
-            }
-            // 别盖住途中角色的生命线。
-            for k in 0..actors.len() {
-                if (x_of(k) - c.x).abs() < hw && x_of(k) > lo && x_of(k) < hi {
-                    bad += 1;
-                }
-            }
-            if best.map_or(true, |(b, _)| bad < b) {
-                best = Some((bad, c));
-            }
-        }
-        let c = best.unwrap().1;
-        placed.push((c, hw));
-        cv.rect(
-            c.x - hw,
-            c.y - hh,
-            hw * 2.0,
-            hh * 2.0,
-            0.0,
-            Some("#ffffff"),
-            None,
-        );
-        cv.text(c, &m.text, Anchor::Middle, 0.85, paint(m.attrs.color).2);
     }
 
     // 状态标注放生命线外侧；中间角色放右侧并加白底。

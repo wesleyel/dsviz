@@ -41,7 +41,13 @@ pub fn matrix(doc: &Doc, cv: &mut Canvas) -> Res<()> {
         .flatten()
         .map(|e| cv.w(text(e)))
         .fold(0.0, f64::max);
-    let cw = (maxw + em * 0.8).max(em * 1.6) * cv.sp.max(0.5);
+    // 列名也要放得下，否则相邻列名会叠在一起
+    let label_w = cl
+        .iter()
+        .flatten()
+        .map(|s| cv.ws(s, 0.85))
+        .fold(0.0, f64::max);
+    let cw = (maxw + em * 0.8).max(em * 1.6).max(label_w + em * 0.5) * cv.sp.max(0.5);
     let ch = em * 1.5 * cv.sp.max(0.5);
     let (w, h) = (nc as f64 * cw, nr as f64 * ch);
     for (i, r) in rs.iter().enumerate() {

@@ -2,6 +2,7 @@
 
 use crate::linear::null_mark;
 use crate::parse::{err, fail, Attrs, Doc, Elem, Res, Tok};
+use crate::place::{Soft, MID_TS};
 use crate::svg::{line_color, line_width, p, paint, Anchor, Canvas, Pen, Shape, INK, MUTED, P};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -392,8 +393,8 @@ pub fn graph(doc: &Doc, cv: &mut Canvas, directed: bool) -> Res<()> {
             dash: e.attrs.dashed,
         };
         let (pu, pv) = (pos[e.u], pos[e.v]);
-        let mut label_at: P;
         let mut side: P;
+        let path: Vec<P>;
         if !routes[ei].is_empty() {
             let r = &routes[ei];
             let a = shapes[e.u].boundary(pu, r[0]);
@@ -402,8 +403,8 @@ pub fn graph(doc: &Doc, cv: &mut Canvas, directed: bool) -> Res<()> {
             pts.extend(r.iter().copied());
             pts.push(b);
             cv.spline(&pts, pen, e.kind != EKind::Line, e.kind == EKind::Both);
-            label_at = r[r.len() / 2];
             side = p(1.0, 0.0);
+            path = pts;
         } else if e.u == e.v {
             let (_, hh) = shapes[e.u].half();
             let top = p(pu.x, pu.y - hh);
@@ -418,8 +419,13 @@ pub fn graph(doc: &Doc, cv: &mut Canvas, directed: bool) -> Res<()> {
                 pen,
                 e.kind != EKind::Line,
             );
-            label_at = p(pu.x, top.y - up * 0.75);
             side = p(0.0, -1.0);
+            path = crate::svg::bez_points(
+                a,
+                p(a.x - em * 0.8, top.y - up),
+                p(b.x + em * 0.8, top.y - up),
+                b,
+            );
         } else {
             // 同一对结点之间的第几条边
             let same: Vec<usize> = g
@@ -461,7 +467,7 @@ pub fn graph(doc: &Doc, cv: &mut Canvas, directed: bool) -> Res<()> {
                 if m.add(side).sub(cen).len() < m.sub(side).sub(cen).len() {
                     side = side.mul(-1.0);
                 }
-                label_at = m;
+                path = vec![a, b];
             } else {
                 let d = pv.sub(pu);
                 let off = d.perp().mul(bend);
@@ -477,21 +483,21 @@ pub fn graph(doc: &Doc, cv: &mut Canvas, directed: bool) -> Res<()> {
                 if e.kind == EKind::Both {
                     cv.head(a, a.sub(c1), color);
                 }
-                label_at = crate::svg::bez(a, c1, c2, b, 0.5);
                 side = off.norm();
+                path = crate::svg::bez_points(a, c1, c2, b);
             }
         }
         if let Some(w) = &e.weight {
-            let tw = cv.ws(w, 0.85);
-            let ext = side.x.abs() * tw / 2.0 + side.y.abs() * em * 0.45;
-            label_at = label_at.add(side.mul(em * 0.3 + ext));
-            cv.text(
-                label_at,
-                w,
-                Anchor::Middle,
-                0.85,
-                if e.attrs.color.is_some() { color } else { INK },
-            );
+            cv.soft_label(Soft {
+                text: w.clone(),
+                scale: 0.85,
+                color: if e.attrs.color.is_some() { color } else { INK }.to_string(),
+                path,
+                ts: MID_TS.to_vec(),
+                side,
+                fixed: None,
+                inline_first: false,
+            });
         }
     }
     for v in 0..n {

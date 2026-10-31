@@ -12,7 +12,7 @@ perl -pi -e 's/^version = "\Q$ENV{old}\E"/version = "$ENV{new}"/' typst.toml
 # Only the [package] version (the first one) in Cargo.toml.
 perl -pi -e '$d ||= s/^version = "\Q$ENV{old}\E"/version = "$ENV{new}"/' plugin/Cargo.toml
 perl -0pi -e 's/(name = "dsviz"\nversion = )"\Q$ENV{old}\E"/$1"$ENV{new}"/' plugin/Cargo.lock
-perl -pi -e 's{\@preview/dsviz:\Q$ENV{old}\E}{\@preview/dsviz:$ENV{new}}g; s{/(blob|tree)/v\Q$ENV{old}\E/}{/$1/v$ENV{new}/}g' \
+perl -pi -e 's{\@preview/dsviz:\Q$ENV{old}\E}{\@preview/dsviz:$ENV{new}}g; s{/(blob|tree)/v\Q$ENV{old}\E/}{/$1/v$ENV{new}/}g; s{Typst_Universe-\Q$ENV{old}\E}{Typst_Universe-$ENV{new}}g' \
   README.md README.zh-CN.md examples/*.typ tests/*.typ
 grep -q "^## \[$new\]" CHANGELOG.md \
   || perl -pi -e 's/^## \[Unreleased\]\n/## [Unreleased]\n\n## [$ENV{new}] - $ENV{today}\n/' CHANGELOG.md

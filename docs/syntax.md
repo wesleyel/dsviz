@@ -41,6 +41,10 @@ of the block.
 - `a_1` and `a_{12}` render subscripts; `\_` is a literal underscore
 - A lone `_` is an empty slot
 
+## Label placement
+
+Edge labels in `graph`, `digraph`, `block`, `ladder` and trees, and `^pointer` names, are placed automatically. A label sits beside its edge when it is clearly closest to that edge; otherwise it sits on the edge over a translucent white mask, and as a last resort it moves to free space with a thin leader line. Crowded diagrams widen before a leader line is used, so `spacing` acts as a minimum.
+
 ## Kinds
 
 | Kind | How to write it | Options |

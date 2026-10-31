@@ -1,5 +1,5 @@
 // Snippets from README.md; keep in sync.
-#import "@preview/dsviz:0.2.0": ds
+#import "@preview/dsviz:0.2.1": ds
 #set page(width: 12cm, height: auto, margin: 1cm)
 
 #show raw.where(lang: "ds"): ds

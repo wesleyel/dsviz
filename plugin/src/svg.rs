@@ -1,6 +1,7 @@
 //! SVG 画布、字宽表和公共绘图原语。坐标单位为 pt。
 
 use crate::parse::{Attrs, Color};
+use crate::place::{Pointer, Soft};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -377,6 +378,52 @@ pub struct Canvas<'a> {
     buf: String,
     bb: [f64; 4],
     texts: Vec<TextItem>,
+    /// 已画的线段和实体，文字避让用。
+    segs: Vec<(P, P)>,
+    boxes: Vec<Rect>,
+    softs: Vec<Soft>,
+    pointers: Vec<Pointer>,
+    soft_boxes: Vec<Rect>,
+    masks: Vec<Rect>,
+    leaders: usize,
+}
+
+/// 轴对齐矩形。
+#[derive(Clone, Copy, Debug)]
+pub struct Rect {
+    pub x0: f64,
+    pub y0: f64,
+    pub x1: f64,
+    pub y1: f64,
+}
+
+impl Rect {
+    pub fn around(c: P, hw: f64, hh: f64) -> Rect {
+        Rect {
+            x0: c.x - hw,
+            y0: c.y - hh,
+            x1: c.x + hw,
+            y1: c.y + hh,
+        }
+    }
+
+    pub fn grown(&self, d: f64) -> Rect {
+        Rect {
+            x0: self.x0 - d,
+            y0: self.y0 - d,
+            x1: self.x1 + d,
+            y1: self.y1 + d,
+        }
+    }
+
+    pub fn overlaps(&self, o: &Rect) -> bool {
+        self.x0 < o.x1 && o.x0 < self.x1 && self.y0 < o.y1 && o.y0 < self.y1
+    }
+
+    /// 矩形边界上离 q 最近的点。
+    pub fn nearest_edge(&self, q: P) -> P {
+        p(q.x.clamp(self.x0, self.x1), q.y.clamp(self.y0, self.y1))
+    }
 }
 
 /// 文字不写进 SVG，而是交给 Typst 排版，保证字体与实测宽度一致。
@@ -405,7 +452,140 @@ impl<'a> Canvas<'a> {
                 f64::NEG_INFINITY,
             ],
             texts: Vec::new(),
+            segs: Vec::new(),
+            boxes: Vec::new(),
+            softs: Vec::new(),
+            pointers: Vec::new(),
+            soft_boxes: Vec::new(),
+            masks: Vec::new(),
+            leaders: 0,
         }
+    }
+
+    /// 用了引线的标签数。
+    pub fn leaders(&self) -> usize {
+        self.leaders
+    }
+
+    pub(crate) fn count_leader(&mut self) {
+        self.leaders += 1;
+    }
+
+    pub(crate) fn segs(&self) -> &[(P, P)] {
+        &self.segs
+    }
+
+    pub(crate) fn boxes(&self) -> &[Rect] {
+        &self.boxes
+    }
+
+    pub(crate) fn text_boxes(&self) -> Vec<Rect> {
+        self.texts
+            .iter()
+            .map(|t| {
+                let w = self.ws(&t.text, t.scale);
+                let x0 = match t.anchor {
+                    Anchor::Start => t.x,
+                    Anchor::Middle => t.x - w / 2.0,
+                    Anchor::End => t.x - w,
+                };
+                let hh = self.em * t.scale * 0.45;
+                Rect {
+                    x0,
+                    y0: t.y - hh,
+                    x1: x0 + w,
+                    y1: t.y + hh,
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn take_softs(&mut self) -> Vec<Soft> {
+        std::mem::take(&mut self.softs)
+    }
+
+    pub(crate) fn take_pointers(&mut self) -> Vec<Pointer> {
+        std::mem::take(&mut self.pointers)
+    }
+
+    pub(crate) fn mark_soft(&mut self, r: Rect) {
+        self.soft_boxes.push(r);
+    }
+
+    /// 半透明白底淡化文字下方的线但不断开，只用于压在本边上的标签。
+    pub(crate) fn mask(&mut self, r: &Rect) {
+        self.masks.push(*r);
+        let s = format!(
+            r##"<rect x="{}" y="{}" width="{}" height="{}" fill="#ffffff" fill-opacity="0.72"/>"##,
+            f(r.x0),
+            f(r.y0),
+            f(r.x1 - r.x0),
+            f(r.y1 - r.y0)
+        );
+        self.raw(&s);
+    }
+
+    /// 加一个延后放置的文字，由 `resolve_labels` 统一定位。
+    pub fn soft_label(&mut self, s: Soft) {
+        self.w(&s.text);
+        self.softs.push(s);
+    }
+
+    /// 自检：返回互相重叠的文字、压在线上的可移动文字。
+    pub fn issues(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let boxes = self.text_boxes();
+        let shrink = -self.em * 0.05;
+        for i in 0..boxes.len() {
+            for j in i + 1..boxes.len() {
+                if boxes[i].grown(shrink).overlaps(&boxes[j].grown(shrink)) {
+                    out.push(format!(
+                        "text `{}` overlaps `{}`",
+                        self.texts[i].text, self.texts[j].text
+                    ));
+                }
+            }
+        }
+        // 不同的线共线重叠时读起来会像一根线
+        let min_overlap = self.em * 0.5;
+        for (i, &(a, b)) in self.segs.iter().enumerate() {
+            for &(c, d) in &self.segs[i + 1..] {
+                let vertical = a.x == b.x && c.x == d.x && a.x == c.x;
+                let horizontal = a.y == b.y && c.y == d.y && a.y == c.y;
+                let (lo, hi) = if vertical {
+                    (
+                        a.y.min(b.y).max(c.y.min(d.y)),
+                        a.y.max(b.y).min(c.y.max(d.y)),
+                    )
+                } else if horizontal {
+                    (
+                        a.x.min(b.x).max(c.x.min(d.x)),
+                        a.x.max(b.x).min(c.x.max(d.x)),
+                    )
+                } else {
+                    continue;
+                };
+                if hi - lo > min_overlap {
+                    out.push(format!("lines overlap near ({:.1}, {:.1})", a.x, a.y));
+                }
+            }
+        }
+        for r in &self.soft_boxes {
+            let b = r.grown(shrink);
+            let masked = self.masks.iter().any(|m| m.overlaps(&b));
+            if !masked
+                && self
+                    .segs
+                    .iter()
+                    .any(|&(a, c)| crate::place::seg_hits(a, c, &b))
+            {
+                out.push(format!(
+                    "label at ({:.1}, {:.1}) sits on a line",
+                    r.x0, r.y0
+                ));
+            }
+        }
+        out
     }
 
     pub fn w(&self, s: &str) -> f64 {
@@ -455,6 +635,7 @@ impl<'a> Canvas<'a> {
     }
 
     pub fn line(&mut self, a: P, b: P, pen: Pen) {
+        self.segs.push((a, b));
         self.grow_p(a, pen.width);
         self.grow_p(b, pen.width);
         let s = format!(
@@ -469,6 +650,7 @@ impl<'a> Canvas<'a> {
     }
 
     pub fn polyline(&mut self, pts: &[P], pen: Pen) {
+        self.segs.extend(pts.windows(2).map(|s| (s[0], s[1])));
         let mut d = String::new();
         for (i, q) in pts.iter().enumerate() {
             self.grow_p(*q, pen.width);
@@ -500,6 +682,12 @@ impl<'a> Canvas<'a> {
     ) {
         let pad = stroke.map(|p| p.width).unwrap_or(0.0);
         self.grow(x - pad, y - pad, x + w + pad, y + h + pad);
+        self.boxes.push(Rect {
+            x0: x,
+            y0: y,
+            x1: x + w,
+            y1: y + h,
+        });
         let st = stroke.map(|p| self.stroke_attr(p)).unwrap_or_default();
         let s = format!(
             r#"<rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="{}"{}/>"#,
@@ -517,6 +705,7 @@ impl<'a> Canvas<'a> {
     pub fn circle(&mut self, c: P, r: f64, fill: Option<&str>, stroke: Option<Pen>) {
         let pad = stroke.map(|p| p.width).unwrap_or(0.0);
         self.grow_p(c, r + pad);
+        self.boxes.push(Rect::around(c, r, r));
         let st = stroke.map(|p| self.stroke_attr(p)).unwrap_or_default();
         let s = format!(
             r#"<circle cx="{}" cy="{}" r="{}" fill="{}"{}/>"#,
@@ -530,6 +719,18 @@ impl<'a> Canvas<'a> {
     }
 
     pub fn path(&mut self, d: &str, fill: Option<&str>, stroke: Option<Pen>, pts: &[P]) {
+        if fill.is_some() {
+            let xs = pts.iter().map(|q| q.x);
+            let ys = pts.iter().map(|q| q.y);
+            self.boxes.push(Rect {
+                x0: xs.clone().fold(f64::INFINITY, f64::min),
+                y0: ys.clone().fold(f64::INFINITY, f64::min),
+                x1: xs.fold(f64::NEG_INFINITY, f64::max),
+                y1: ys.fold(f64::NEG_INFINITY, f64::max),
+            });
+        } else {
+            self.segs.extend(pts.windows(2).map(|s| (s[0], s[1])));
+        }
         let pad = stroke.map(|p| p.width).unwrap_or(0.0);
         for q in pts {
             self.grow_p(*q, pad);
@@ -635,11 +836,8 @@ impl<'a> Canvas<'a> {
             f(end.x),
             f(end.y)
         );
-        // 包围盒用曲线上的采样点。
-        let mut pts = Vec::new();
-        for i in 0..=8 {
-            pts.push(bez(a, c1, c2, b, i as f64 / 8.0));
-        }
+        // 包围盒与避让都用曲线上的采样点。
+        let pts = bez_points(a, c1, c2, b);
         self.path(&d, None, Some(pen), &pts);
         if head {
             self.head(b, dir, pen.color);
@@ -746,21 +944,20 @@ impl<'a> Canvas<'a> {
 
     /// 边标签：画在边 a→b 中点外侧，right 为真放右侧。
     pub fn edge_label(&mut self, a: P, b: P, s: &str, right: bool) {
-        let m = a.mid(b);
-        let d = b.sub(a).norm();
-        let mut n = d.perp();
+        let mut n = b.sub(a).norm().perp();
         if (n.x < 0.0) == right {
             n = n.mul(-1.0);
         }
-        let w = self.ws(s, 0.8);
-        let ext = n.x.abs() * w / 2.0 + n.y.abs() * self.em * 0.4;
-        self.text(
-            m.add(n.mul(self.em * 0.25 + ext)),
-            s,
-            Anchor::Middle,
-            0.8,
-            INK,
-        );
+        self.soft_label(Soft {
+            text: s.to_string(),
+            scale: 0.8,
+            color: INK.to_string(),
+            path: vec![a, b],
+            ts: crate::place::MID_TS.to_vec(),
+            side: n,
+            fixed: None,
+            inline_first: false,
+        });
     }
 
     /// 指针标注：从 tip 出发沿 dir 反方向画一段带名字的箭头。
@@ -769,24 +966,12 @@ impl<'a> Canvas<'a> {
             return;
         }
         let name = names.join(", ");
-        let d = from_dir.norm();
-        let len = self.em * 1.6;
-        let start = tip.add(d.mul(len));
-        let pen = Pen {
-            color: INK,
-            width: self.sw,
-            dash: false,
-        };
-        self.arrow(start, tip, pen);
-        let gap = self.em * 0.75;
-        let w = self.w(&name);
-        // 名字放在起点外侧。
-        let lc = if d.y.abs() >= d.x.abs() {
-            start.add(p(0.0, gap * d.y.signum()))
-        } else {
-            start.add(p((w / 2.0 + self.em * 0.3) * d.x.signum(), 0.0))
-        };
-        self.label(lc, &name, INK);
+        self.w(&name);
+        self.pointers.push(Pointer {
+            tip,
+            dir: from_dir,
+            name,
+        });
     }
 
     /// 输出格式：首行 `宽 高`，随后每行一条文字
@@ -835,6 +1020,13 @@ impl<'a> Canvas<'a> {
         );
         out
     }
+}
+
+/// 贝塞尔曲线的折线采样。
+pub fn bez_points(a: P, c1: P, c2: P, b: P) -> Vec<P> {
+    (0..=16)
+        .map(|i| bez(a, c1, c2, b, i as f64 / 16.0))
+        .collect()
 }
 
 pub fn bez(a: P, c1: P, c2: P, b: P, t: f64) -> P {

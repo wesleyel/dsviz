@@ -198,7 +198,12 @@ struct Free {
 }
 
 fn parse_at(s: &str, no: usize) -> Res<(f64, f64)> {
-    let bad = || fail(no, format!("coordinate `@{}` should be written as @col,row", s));
+    let bad = || {
+        fail(
+            no,
+            format!("coordinate `@{}` should be written as @col,row", s),
+        )
+    };
     let (a, b) = s.split_once(',').ok_or_else(bad)?;
     let num = |v: &str| v.trim().parse::<f64>().ok().filter(|x| x.is_finite());
     Ok((num(a).ok_or_else(bad)?, num(b).ok_or_else(bad)?))
@@ -285,7 +290,10 @@ fn parse_node(l: &Line, cv: &Canvas, gx: f64, gy: f64) -> Res<Node> {
         }
     }
     let Some((cx, cy)) = at else {
-        return err(l.no, format!("node `{}` needs a coordinate `@col,row`", id.text));
+        return err(
+            l.no,
+            format!("node `{}` needs a coordinate `@col,row`", id.text),
+        );
     };
     let dir = dir.unwrap_or(if shape == "mux" { Side::E } else { Side::S });
     let text = text.unwrap_or_else(|| id.text.clone());
@@ -297,7 +305,10 @@ fn parse_node(l: &Line, cv: &Canvas, gx: f64, gy: f64) -> Res<Node> {
         (hw, hh) = if vertical {
             (w.map_or(thick, |v| v * gx / 2.0), h.unwrap() * gy / 2.0)
         } else {
-            (w.unwrap_or(4.0) * gx / 2.0, h.map_or(thick, |v| v * gy / 2.0))
+            (
+                w.unwrap_or(4.0) * gx / 2.0,
+                h.map_or(thick, |v| v * gy / 2.0),
+            )
         };
     } else {
         if let Some(v) = w {
@@ -330,14 +341,21 @@ fn parse_node(l: &Line, cv: &Canvas, gx: f64, gy: f64) -> Res<Node> {
 
 fn parse_end(e: &Elem, nodes: &[Node], no: usize) -> Res<End> {
     if let Some(i) = nodes.iter().position(|n| n.id == e.text) {
-        return Ok(End { node: i, port: None });
+        return Ok(End {
+            node: i,
+            port: None,
+        });
     }
     if let Some((id, port)) = e.text.rsplit_once('.') {
         if let Some(i) = nodes.iter().position(|n| n.id == id) {
             let mut cs = port.chars();
             let side = cs.next().and_then(Side::parse);
             let rest = cs.as_str();
-            let k = if rest.is_empty() { Some(0) } else { rest.parse().ok() };
+            let k = if rest.is_empty() {
+                Some(0)
+            } else {
+                rest.parse().ok()
+            };
             return match (side, k) {
                 (Some(s), Some(k)) => Ok(End {
                     node: i,
@@ -529,11 +547,19 @@ fn seg_label(cv: &mut Canvas, a: P, b: P, s: &str, at: u8, side: P) {
             1 => ((a.x + b.x) / 2.0, Anchor::Middle),
             0 => (
                 a.x + dirx * pad,
-                if dirx > 0.0 { Anchor::Start } else { Anchor::End },
+                if dirx > 0.0 {
+                    Anchor::Start
+                } else {
+                    Anchor::End
+                },
             ),
             _ => (
                 b.x - dirx * pad,
-                if dirx > 0.0 { Anchor::End } else { Anchor::Start },
+                if dirx > 0.0 {
+                    Anchor::End
+                } else {
+                    Anchor::Start
+                },
             ),
         };
         cv.text(p(x, y), s, anchor, scale, INK);
@@ -587,7 +613,11 @@ fn draw_labels(cv: &mut Canvas, pts: &[P], labels: &[String]) {
         }
         [s1, s2] => {
             let side_a = if n > 2 { pts[1].sub(pts[2]) } else { dflt };
-            let side_b = if n > 2 { pts[n - 2].sub(pts[n - 3]) } else { dflt };
+            let side_b = if n > 2 {
+                pts[n - 2].sub(pts[n - 3])
+            } else {
+                dflt
+            };
             let mut side_b = nonzero(side_b, dflt);
             if n == 2 {
                 let d = pts[1].sub(pts[0]);
@@ -649,10 +679,7 @@ fn draw_node(cv: &mut Canvas, n: &Node) {
     };
     let (x, y, w, h) = (n.l(), n.t(), n.hw * 2.0, n.hh * 2.0);
     let c = n.c;
-    let thin = Pen {
-        dash: false,
-        ..pen
-    };
+    let thin = Pen { dash: false, ..pen };
     // 文字是否放在形状外面。
     let mut outside = false;
     let mut at = c;

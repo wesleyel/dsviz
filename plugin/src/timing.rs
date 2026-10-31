@@ -300,13 +300,7 @@ pub fn fields(doc: &Doc, cv: &mut Canvas) -> Res<()> {
             } else {
                 let pad = em * 0.15;
                 cv.text(p(x + pad, ty), &a.to_string(), Anchor::Start, small, NOTE);
-                cv.text(
-                    p(x + w - pad, ty),
-                    &b.to_string(),
-                    Anchor::End,
-                    small,
-                    NOTE,
-                );
+                cv.text(p(x + w - pad, ty), &b.to_string(), Anchor::End, small, NOTE);
             }
             x += w;
         }
@@ -753,11 +747,7 @@ pub fn gantt(doc: &Doc, cv: &mut Canvas) -> Res<()> {
             }
             ends[row] = x + w / 2.0;
             let ty = bottom + tick + em * 0.5 + row as f64 * line_h;
-            cv.line(
-                p(x, bottom),
-                p(x, bottom + tick + row as f64 * line_h),
-                pen,
-            );
+            cv.line(p(x, bottom), p(x, bottom + tick + row as f64 * line_h), pen);
             cv.text(p(x, ty), s, Anchor::Middle, small, INK);
         }
     }
@@ -1052,11 +1042,7 @@ pub fn ladder(doc: &Doc, cv: &mut Canvas) -> Res<()> {
         actors.iter().position(|a| a == name).ok_or_else(|| {
             fail(
                 no,
-                format!(
-                    "unknown actor `{}` (available: {})",
-                    name,
-                    actors.join(" ")
-                ),
+                format!("unknown actor `{}` (available: {})", name, actors.join(" ")),
             )
         })
     };
@@ -1176,7 +1162,12 @@ pub fn ladder(doc: &Doc, cv: &mut Canvas) -> Res<()> {
         };
         step = step.max(need / span);
     }
-    step = step.max(actors.iter().map(|a| cv.w(a) + em * 2.0).fold(0.0, f64::max));
+    step = step.max(
+        actors
+            .iter()
+            .map(|a| cv.w(a) + em * 2.0)
+            .fold(0.0, f64::max),
+    );
     step *= sp;
     let rowh = em * 2.6 * sp;
     let x_of = |i: usize| i as f64 * step;
@@ -1334,7 +1325,13 @@ mod tests {
 
     #[test]
     fn clean_drops_collinear() {
-        let v = clean(&[p(0.0, 0.0), p(0.0, 5.0), p(0.0, 5.0), p(0.0, 9.0), p(3.0, 9.0)]);
+        let v = clean(&[
+            p(0.0, 0.0),
+            p(0.0, 5.0),
+            p(0.0, 5.0),
+            p(0.0, 9.0),
+            p(3.0, 9.0),
+        ]);
         assert_eq!(v.len(), 3);
     }
 }

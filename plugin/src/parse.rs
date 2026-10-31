@@ -431,7 +431,11 @@ pub fn parse(src: &str) -> Res<Doc> {
         match w.split_once('=') {
             Some((k, v)) if !k.is_empty() => opts.push((k.to_string(), v.to_string())),
             // wave 的 `bits=1 0 1` 是空格分隔的列表，后面的词都归 bits。
-            _ if kind == "wave" && opts.last().is_some_and(|(k, _): &(String, String)| k == "bits") => {
+            _ if kind == "wave"
+                && opts
+                    .last()
+                    .is_some_and(|(k, _): &(String, String)| k == "bits") =>
+            {
                 let v = &mut opts.last_mut().unwrap().1;
                 v.push(' ');
                 v.push_str(w);

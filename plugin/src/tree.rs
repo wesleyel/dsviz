@@ -1,7 +1,9 @@
 //! tree / forest / bintree / rbtree / btree / bplus
 
 use crate::parse::{err, Attrs, Color, Doc, Elem, Line, Res};
-use crate::svg::{p, red_node_fill, red_node_stroke, red_node_text, Anchor, Canvas, Pen, Shape, INK, MUTED, P};
+use crate::svg::{
+    p, red_node_fill, red_node_stroke, red_node_text, Anchor, Canvas, Pen, Shape, INK, MUTED, P,
+};
 
 // ---------------- 缩进解析 ----------------
 
@@ -583,7 +585,11 @@ pub fn bintree(doc: &Doc, cv: &mut Canvas, rb: bool) -> Res<()> {
                 dash: e.attrs.dashed,
             };
             cv.shape(pos[v], shapes[v], Some(fill), Some(stroke));
-            cv.label(pos[v], e.label(), if red { red_node_text() } else { "#ffffff" });
+            cv.label(
+                pos[v],
+                e.label(),
+                if red { red_node_text() } else { "#ffffff" },
+            );
         } else {
             cv.node(pos[v], shapes[v], e.label(), &e.attrs);
         }

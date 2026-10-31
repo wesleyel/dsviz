@@ -1,4 +1,4 @@
-#import "@preview/dsviz:0.1.0": ds
+#import "@preview/dsviz:0.2.0": ds
 #set page(width: auto, height: auto, margin: 10pt, fill: white)
 #set text(size: 11pt)
 

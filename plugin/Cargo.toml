@@ -1,6 +1,6 @@
 [package]
 name = "dsviz"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "WASM plugin behind the dsviz Typst package: a text DSL for data-structure diagrams."
 license = "MIT"

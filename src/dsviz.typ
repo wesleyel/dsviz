@@ -64,8 +64,8 @@
 ///   natural size, labels in the diagram have exactly this size.
 /// - spacing (float): Node spacing factor; does not affect the text size.
 /// - stroke (auto, length): Line width. `auto` is 8% of the text size.
-/// - palette (str): `"gray"` for black-and-white printing, `"color"` for color
-///   fills and edges.
+/// - palette (str): `"color"` for color fills and edges, `"gray"` for
+///   black-and-white printing.
 /// - body (str, content): The DSL source, as a string or a raw block.
 /// -> content
 #let ds(
@@ -74,7 +74,7 @@
   size: auto,
   spacing: 1.0,
   stroke: auto,
-  palette: "gray",
+  palette: "color",
   body,
 ) = context {
   let src = _source(body)

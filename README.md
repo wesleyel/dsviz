@@ -1,23 +1,23 @@
 # dsviz
 
 [![CI](https://github.com/wesleyel/dsviz/actions/workflows/ci.yml/badge.svg)](https://github.com/wesleyel/dsviz/actions/workflows/ci.yml)
-[![Typst Universe](https://img.shields.io/badge/Typst_Universe-0.1.0-239dad)](https://typst.app/universe/package/dsviz)
+[![Typst Universe](https://img.shields.io/badge/Typst_Universe-0.2.0-239dad)](https://typst.app/universe/package/dsviz)
 [![Typst](https://img.shields.io/badge/Typst-%E2%89%A50.13-239dad)](https://typst.app)
-[![Rust/WASM](https://img.shields.io/badge/plugin-Rust%2FWASM-555555)](plugin/)
+[![Rust/WASM](https://img.shields.io/badge/plugin-Rust%2FWASM-555555)](https://github.com/wesleyel/dsviz/tree/main/plugin)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **English** · [中文](README.zh-CN.md)
 
-Draw data-structure and computer-systems diagrams in [Typst](https://typst.app) from a few lines of text. The default style is plain and traditional: square corners, thin black lines and gray fills, so every figure survives black-and-white printing. A color palette is one option away.
+Draw data-structure and computer-systems diagrams in [Typst](https://typst.app) from a few lines of text. The style is plain and traditional: square corners and thin black lines, with restrained color. A grayscale palette keeps every figure clear in black-and-white printing.
 
 Labels are typeset by Typst itself, so diagrams align with any font and match your document.
 
-![Overview of all 22 diagram kinds in black and white: trees, B-trees, lists, arrays, stacks, ring buffers, matrices, tables, graphs, adjacency structures, bit fields, pipeline charts, Gantt charts, sequence diagrams, waveforms and block diagrams](docs/images/gallery.png)
+![Overview of all 22 diagram kinds: trees, B-trees, lists, arrays, stacks, ring buffers, matrices, tables, graphs, adjacency structures, bit fields, pipeline charts, Gantt charts, sequence diagrams, waveforms and block diagrams](docs/images/gallery.png)
 
 ## Usage
 
 ````typ
-#import "@preview/dsviz:0.1.0": ds
+#import "@preview/dsviz:0.2.0": ds
 
 // Every ```ds block becomes a diagram.
 #show raw.where(lang: "ds"): ds
@@ -44,10 +44,10 @@ Data: 10 01 10
 
 ### Palettes
 
-Diagrams are grayscale by default. Pass `palette: "color"` for color fills and edges, per diagram or for a whole document:
+Diagrams use color by default. Pass `palette: "gray"` for black-and-white printing, per diagram or for a whole document:
 
 ```typ
-#show raw.where(lang: "ds"): ds.with(palette: "color")
+#show raw.where(lang: "ds"): ds.with(palette: "gray")
 ```
 
 ![The same red-black tree, digraph and array in the gray and color palettes](docs/images/palette.png)

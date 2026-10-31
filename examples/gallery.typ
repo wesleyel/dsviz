@@ -1,5 +1,5 @@
 // One picture with every kind. Regenerate with `make images`.
-#import "@preview/dsviz:0.1.0": ds
+#import "@preview/dsviz:0.2.0": ds
 
 #set page(width: 30cm, height: auto, margin: 8mm, fill: white)
 #set text(size: 8pt)
@@ -57,11 +57,11 @@ x <-> y <-> z @1
 ```],
   cell[array][```ds
 array index=0
-第1趟: 3 1[hl] 2 _ 5[^low]
+第1趟: 3[red] 1[hl] 2[green] _ 5[blue,^low]
 ```],
   cell[stack][```ds
 stack index=0 size=4
-a b[hl] c[^top]
+a b[hl] c[green,^top]
 ```],
   cell[ring][```ds
 ring size=6
@@ -89,7 +89,7 @@ A - C 3
   cell[digraph][```ds
 digraph dir=lr
 A -> B
-A -> C 3
+A -> C 3 [blue]
 B -> D
 C -> D [dashed]
 ```],
@@ -108,17 +108,17 @@ B - C
 ```],
   cell(span: 2)[fields][```ds
 fields ticks=on
-虚拟地址: 页目录:10 | 页表:10[hl] | 偏移:12
+虚拟地址: 页目录:10[blue] | 页表:10[hl] | 偏移:12[green]
 ```],
   cell[pipeline][```ds
 pipeline cycles=7
 I1: IF ID EX M WB
 I2: _ IF ID stall EX M WB
-I1.M -> I2.EX
+I1.M -> I2.EX [red]
 ```],
   cell[gantt][```ds
 gantt
-P1: 0-3 7-9
+P1: 0-3[blue] 7-9[blue]
 P2: 3-7[hl]
 ```],
   cell(span: 2)[ladder][```ds
@@ -143,7 +143,7 @@ S1 switch @0,1
 H1 host @1,1.6
 N cloud "Internet" @3.6,0 w=1.2
 R1 - R2 "E0" "E1"
-R1 - S1
+R1 - S1 [green]
 S1 - H1
 R2 - N
 ```],

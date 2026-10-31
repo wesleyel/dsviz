@@ -6,15 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-31
+
 ### Added
 
 - Kinds: `fields`, `pipeline`, `gantt`, `ladder`, `wave`, `block`.
 - `[straight]` edge attribute (used by `block`).
-- `palette` parameter: `"gray"` (default) or `"color"`.
+- `palette` parameter: `"color"` (default) or `"gray"` for black-and-white printing.
 
 ### Changed
 
-- Unified black-and-white default style: pure black ink, grayscale fills, square corners. Color names select gray levels, and on edges a heavier line; `palette: "color"` keeps real colors.
+- Unified style across kinds: pure black ink and square corners. With `palette: "gray"`, color names select gray levels, and on edges a heavier line.
 - README split into English and Chinese, with the syntax reference moved to `docs/syntax.md`.
 
 ## [0.1.0] - 2026-10-13

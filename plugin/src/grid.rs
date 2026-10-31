@@ -131,7 +131,7 @@ pub fn table(doc: &Doc, cv: &mut Canvas) -> Res<()> {
             let color = e.and_then(|e| e.attrs.color);
             let (mut fill, _, tc) = paint(color);
             if fill.is_none() && is_head {
-                fill = Some("#eeeeee");
+                fill = Some("#e6e6e6");
             }
             let dash = e.map_or(false, |e| e.attrs.dashed);
             cv.rect(

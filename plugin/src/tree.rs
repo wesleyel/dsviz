@@ -576,14 +576,14 @@ pub fn bintree(doc: &Doc, cv: &mut Canvas, rb: bool) -> Res<()> {
         let e = &t.nodes[v].e;
         if rb && e.attrs.color.map_or(true, |c| c == Color::Red) {
             let red = e.attrs.color == Some(Color::Red);
-            let fill = if red { "#c0392b" } else { INK };
+            let fill = if red { "#c4c4c4" } else { INK };
             let stroke = Pen {
-                color: fill,
+                color: INK,
                 width: cv.sw,
                 dash: e.attrs.dashed,
             };
             cv.shape(pos[v], shapes[v], Some(fill), Some(stroke));
-            cv.label(pos[v], e.label(), "#ffffff");
+            cv.label(pos[v], e.label(), if red { INK } else { "#ffffff" });
         } else {
             cv.node(pos[v], shapes[v], e.label(), &e.attrs);
         }

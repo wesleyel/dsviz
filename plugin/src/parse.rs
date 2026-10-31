@@ -28,16 +28,18 @@ pub struct Attrs {
     pub color: Option<Color>,
     pub dashed: bool,
     pub boxed: bool,
+    pub straight: bool,
     pub ptrs: Vec<String>,
 }
 
 impl Attrs {
-    fn merge(&mut self, o: Attrs) {
+    pub fn merge(&mut self, o: Attrs) {
         if o.color.is_some() {
             self.color = o.color;
         }
         self.dashed |= o.dashed;
         self.boxed |= o.boxed;
+        self.straight |= o.straight;
         self.ptrs.extend(o.ptrs);
     }
 }
@@ -246,6 +248,7 @@ pub fn parse_attrs(s: &str, no: usize) -> Res<Attrs> {
             "gray" | "grey" => a.color = Some(Color::Gray),
             "dashed" => a.dashed = true,
             "box" => a.boxed = true,
+            "straight" => a.straight = true,
             _ => {
                 if let Some(n) = p.strip_prefix('^') {
                     if n.is_empty() {
@@ -256,7 +259,7 @@ pub fn parse_attrs(s: &str, no: usize) -> Res<Attrs> {
                     return err(
                         no,
                         format!(
-                            "unknown attribute `{}` (available: hl red green blue gray dashed box ^name)",
+                            "unknown attribute `{}` (available: hl red green blue gray dashed box straight ^name)",
                             p
                         ),
                     );
@@ -349,7 +352,12 @@ pub fn lex(s: &str, no: usize) -> Res<Vec<Tok>> {
         let mut pieces = split_arrows(&w);
         if let Some(Tok::E(e)) = pieces.last_mut() {
             e.attrs = attrs;
-        } else if attrs.color.is_some() || attrs.dashed || attrs.boxed || !attrs.ptrs.is_empty() {
+        } else if attrs.color.is_some()
+            || attrs.dashed
+            || attrs.boxed
+            || attrs.straight
+            || !attrs.ptrs.is_empty()
+        {
             pieces.push(Tok::Attrs(attrs));
         }
         out.extend(pieces);
@@ -422,6 +430,12 @@ pub fn parse(src: &str) -> Res<Doc> {
     for w in &words[1..] {
         match w.split_once('=') {
             Some((k, v)) if !k.is_empty() => opts.push((k.to_string(), v.to_string())),
+            // wave 的 `bits=1 0 1` 是空格分隔的列表，后面的词都归 bits。
+            _ if kind == "wave" && opts.last().is_some_and(|(k, _): &(String, String)| k == "bits") => {
+                let v = &mut opts.last_mut().unwrap().1;
+                v.push(' ');
+                v.push_str(w);
+            }
             _ => {
                 return err(
                     head_line,

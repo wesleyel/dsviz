@@ -2,7 +2,7 @@
 
 use crate::linear::null_mark;
 use crate::parse::{err, fail, Attrs, Doc, Elem, Res, Tok};
-use crate::svg::{line_color, p, paint, Anchor, Canvas, Pen, Shape, INK, MUTED, P};
+use crate::svg::{line_color, line_width, p, paint, Anchor, Canvas, Pen, Shape, INK, MUTED, P};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum EKind {
@@ -388,7 +388,7 @@ pub fn graph(doc: &Doc, cv: &mut Canvas, directed: bool) -> Res<()> {
         let color = line_color(e.attrs.color);
         let pen = Pen {
             color,
-            width: cv.sw,
+            width: line_width(e.attrs.color, cv.sw),
             dash: e.attrs.dashed,
         };
         let (pu, pv) = (pos[e.u], pos[e.v]);

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Kinds: `fields`, `pipeline`, `gantt`, `ladder`, `wave`, `block`.
+- `[straight]` edge attribute (used by `block`).
+
+### Changed
+
+- Unified black-and-white style: pure black ink, grayscale fills, square corners. Color names now select gray levels, and on edges a heavier line.
+- README split into English and Chinese, with the syntax reference moved to `docs/syntax.md`.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added

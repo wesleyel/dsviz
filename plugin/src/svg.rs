@@ -1,7 +1,7 @@
 //! SVG 画布、字宽表和公共绘图原语。坐标单位为 pt。
 
 use crate::parse::{Attrs, Color};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -9,11 +9,51 @@ pub const INK: &str = "#000000";
 pub const MUTED: &str = "#595959";
 pub const SUB_SCALE: f64 = 0.7;
 
+thread_local! {
+    /// 当前配色：false 灰度（默认），true 彩色。由 `run` 在绘制前设置。
+    static COLORED: Cell<bool> = const { Cell::new(false) };
+}
+
+pub fn set_colored(on: bool) {
+    COLORED.with(|c| c.set(on));
+}
+
+fn colored() -> bool {
+    COLORED.with(|c| c.get())
+}
+
+/// 红黑树红结点的描边与文字色。
+pub fn red_node_stroke() -> &'static str {
+    if colored() {
+        "#c0392b"
+    } else {
+        INK
+    }
+}
+
+pub fn red_node_text() -> &'static str {
+    if colored() {
+        "#ffffff"
+    } else {
+        INK
+    }
+}
+
+/// 红黑树红结点的填充色。
+pub fn red_node_fill() -> &'static str {
+    if colored() {
+        "#c0392b"
+    } else {
+        "#c4c4c4"
+    }
+}
+
 pub struct Config {
     pub size: f64,
     pub stroke: f64,
     pub spacing: f64,
     pub font: String,
+    pub colored: bool,
     pub widths: HashMap<String, f64>,
 }
 
@@ -24,6 +64,7 @@ impl Default for Config {
             stroke: 0.8,
             spacing: 1.0,
             font: "sans-serif".into(),
+            colored: false,
             widths: HashMap::new(),
         }
     }
@@ -50,6 +91,11 @@ impl Config {
                     "stroke" => stroke = Some(num()?),
                     "spacing" => c.spacing = num()?,
                     "font" => c.font = v.to_string(),
+                    "palette" => match v {
+                        "gray" => c.colored = false,
+                        "color" => c.colored = true,
+                        _ => return Err(format!("dsviz: unknown palette `{}`", v)),
+                    },
                     _ => {}
                 }
             }
@@ -237,8 +283,18 @@ pub struct Pen {
     pub dash: bool,
 }
 
-/// 元素着色：(填充, 描边, 文字)。全部用灰度，保证黑白印刷可分辨。
+/// 元素着色：(填充, 描边, 文字)。默认灰度，保证黑白印刷可分辨。
 pub fn paint(c: Option<Color>) -> (Option<&'static str>, &'static str, &'static str) {
+    if colored() {
+        return match c {
+            None => (None, INK, INK),
+            Some(Color::Hl) => (Some("#fff0a0"), INK, INK),
+            Some(Color::Red) => (Some("#fbdcd8"), "#c0392b", INK),
+            Some(Color::Green) => (Some("#dcf0d8"), "#2e7d32", INK),
+            Some(Color::Blue) => (Some("#dce8f6"), "#2f6db5", INK),
+            Some(Color::Gray) => (Some("#ececec"), MUTED, MUTED),
+        };
+    }
     match c {
         None => (None, INK, INK),
         Some(Color::Hl) => (Some("#e6e6e6"), INK, INK),
@@ -251,14 +307,27 @@ pub fn paint(c: Option<Color>) -> (Option<&'static str>, &'static str, &'static 
 
 /// 线条颜色。
 pub fn line_color(c: Option<Color>) -> &'static str {
+    if colored() {
+        return match c {
+            None => INK,
+            Some(Color::Hl) => "#d19a00",
+            Some(Color::Red) => "#c0392b",
+            Some(Color::Green) => "#2e7d32",
+            Some(Color::Blue) => "#2f6db5",
+            Some(Color::Gray) => MUTED,
+        };
+    }
     match c {
         Some(Color::Gray) => MUTED,
         _ => INK,
     }
 }
 
-/// 线宽：黑白印刷下靠粗细而不是颜色突出一条边。
+/// 线宽：灰度配色下靠粗细而不是颜色突出一条边。
 pub fn line_width(c: Option<Color>, sw: f64) -> f64 {
+    if colored() {
+        return sw;
+    }
     match c {
         Some(Color::Hl) | Some(Color::Red) => sw * 2.0,
         Some(Color::Green) | Some(Color::Blue) => sw * 1.5,

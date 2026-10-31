@@ -43,6 +43,7 @@ pub const KINDS: &[&str] = &[
 /// 解析并绘制，返回 SVG 文本。
 pub fn run(src: &str, cfg: &Config, m: &Meas) -> Result<String, String> {
     let doc = parse::parse(src)?;
+    svg::set_colored(cfg.colored);
     let mut cv = Canvas::new(cfg, m);
     match doc.kind.as_str() {
         "tree" | "forest" => tree::tree(&doc, &mut cv)?,
@@ -196,6 +197,22 @@ mod tests {
     #[test]
     fn other_kinds_still_reject_spaced_header_words() {
         assert!(labels_of("array bits=1 0\na").is_err());
+    }
+
+    #[test]
+    fn palette_switches_colors() {
+        let src = "rbtree\n10\n  5[red]\n  20";
+        let draw = |p: &str| {
+            let cfg: String = labels_of(src)
+                .unwrap()
+                .lines()
+                .map(|s| format!("5\t{}\n", s))
+                .collect();
+            render_with(src, &format!("size=10\npalette={}\n{}", p, cfg))
+        };
+        assert!(draw("gray").unwrap().contains("#c4c4c4"));
+        assert!(draw("color").unwrap().contains("#c0392b"));
+        assert!(draw("neon").is_err());
     }
 
     #[test]

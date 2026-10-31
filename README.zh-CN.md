@@ -1,13 +1,14 @@
 # dsviz
 
 [![CI](https://github.com/wesleyel/dsviz/actions/workflows/ci.yml/badge.svg)](https://github.com/wesleyel/dsviz/actions/workflows/ci.yml)
+[![Typst Universe](https://img.shields.io/badge/Typst_Universe-0.1.0-239dad)](https://typst.app/universe/package/dsviz)
 [![Typst](https://img.shields.io/badge/Typst-%E2%89%A50.13-239dad)](https://typst.app)
 [![Rust/WASM](https://img.shields.io/badge/plugin-Rust%2FWASM-555555)](plugin/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 [English](README.md) · **中文**
 
-用几行文本在 [Typst](https://typst.app) 里画数据结构和计算机系统示意图。风格简洁传统：直角、细黑线、灰度填充，黑白印刷也清楚，适合讲义、笔记和习题。
+用几行文本在 [Typst](https://typst.app) 里画数据结构和计算机系统示意图。默认风格简洁传统：直角、细黑线、灰度填充，黑白印刷也清楚，适合讲义、笔记和习题；需要时可切换彩色配色。
 
 图中文字由 Typst 排版，中文可以直接写，任何字体都能对齐，字号与正文一致。
 
@@ -42,6 +43,16 @@ CLK: c c c
 ````
 
 用代码块写法时，图默认继承等宽字体；想和正文一致，写 `ds.with(font: ..., size: ...)`。
+
+### 配色
+
+默认灰度。传 `palette: "color"` 切换彩色，可以单张图设置，也可以全文设置：
+
+```typ
+#show raw.where(lang: "ds"): ds.with(palette: "color")
+```
+
+![同一棵红黑树、有向图和数组的灰度与彩色配色对比](docs/images/palette.png)
 
 | 分类 | 种类 |
 |---|---|

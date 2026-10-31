@@ -1,13 +1,14 @@
 # dsviz
 
 [![CI](https://github.com/wesleyel/dsviz/actions/workflows/ci.yml/badge.svg)](https://github.com/wesleyel/dsviz/actions/workflows/ci.yml)
+[![Typst Universe](https://img.shields.io/badge/Typst_Universe-0.1.0-239dad)](https://typst.app/universe/package/dsviz)
 [![Typst](https://img.shields.io/badge/Typst-%E2%89%A50.13-239dad)](https://typst.app)
 [![Rust/WASM](https://img.shields.io/badge/plugin-Rust%2FWASM-555555)](plugin/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **English** · [中文](README.zh-CN.md)
 
-Draw data-structure and computer-systems diagrams in [Typst](https://typst.app) from a few lines of text. The style is plain and traditional: square corners, thin black lines and gray fills, so every figure survives black-and-white printing.
+Draw data-structure and computer-systems diagrams in [Typst](https://typst.app) from a few lines of text. The default style is plain and traditional: square corners, thin black lines and gray fills, so every figure survives black-and-white printing. A color palette is one option away.
 
 Labels are typeset by Typst itself, so diagrams align with any font and match your document.
 
@@ -40,6 +41,16 @@ CLK: c c c
 Data: 10 01 10
 ```]
 ````
+
+### Palettes
+
+Diagrams are grayscale by default. Pass `palette: "color"` for color fills and edges, per diagram or for a whole document:
+
+```typ
+#show raw.where(lang: "ds"): ds.with(palette: "color")
+```
+
+![The same red-black tree, digraph and array in the gray and color palettes](docs/images/palette.png)
 
 | Kinds | |
 |---|---|

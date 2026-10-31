@@ -10,10 +10,11 @@ All notable changes to this project are documented here. The format follows
 
 - Kinds: `fields`, `pipeline`, `gantt`, `ladder`, `wave`, `block`.
 - `[straight]` edge attribute (used by `block`).
+- `palette` parameter: `"gray"` (default) or `"color"`.
 
 ### Changed
 
-- Unified black-and-white style: pure black ink, grayscale fills, square corners. Color names now select gray levels, and on edges a heavier line.
+- Unified black-and-white default style: pure black ink, grayscale fills, square corners. Color names select gray levels, and on edges a heavier line; `palette: "color"` keeps real colors.
 - README split into English and Chinese, with the syntax reference moved to `docs/syntax.md`.
 
 ## [0.1.0] - 2026-10-13

@@ -3,7 +3,7 @@
 ## The `ds` function
 
 ```typ
-#ds(width: auto, font: auto, size: auto, spacing: 1.0, stroke: auto, body)
+#ds(width: auto, font: auto, size: auto, spacing: 1.0, stroke: auto, palette: "gray", body)
 ```
 
 | Parameter | Type | Default | Meaning |
@@ -14,6 +14,7 @@
 | `width` | `auto`, `length`, `relative` | `auto` | Scale the whole diagram (labels and strokes included) to this width. The diagram is redrawn, not scaled as an image. |
 | `spacing` | `float` | `1.0` | Node spacing factor. Does not change the text size. |
 | `stroke` | `auto`, `length` | `auto` | Line width. `auto` is 8% of the text size. |
+| `palette` | `str` | `"gray"` | `"gray"` for black-and-white printing, `"color"` for color fills and edges. |
 
 When used through `show raw.where(lang: "ds"): ds`, the diagram inherits the
 style of raw text, which is a monospace font at 0.8× size by default. To use
@@ -33,7 +34,7 @@ of the block.
 
 **Elements** are written as `label[attr, ...]`:
 
-- Emphasis: `hl`, `red`, `green`, `blue`, `gray`. Everything is drawn in grayscale for black-and-white printing: these names select a gray fill, and on edges a heavier line (`hl`/`red` 2×, `green`/`blue` 1.5×)
+- Emphasis: `hl`, `red`, `green`, `blue`, `gray`. In the default `gray` palette these names select a gray fill, and on edges a heavier line (`hl`/`red` 2×, `green`/`blue` 1.5×). With `palette: "color"` they are real colors
 - `dashed` draws a dashed outline or edge; `box` draws a rectangular node
 - `^name` attaches a named pointer arrow, e.g. `^p`, `^top`, `^front`
 - Quote labels with spaces: `"a b"`

@@ -16,7 +16,7 @@
 }
 
 // Render at the given text size; returns (content, width).
-#let _draw(src, sz, stroke, spacing, font) = {
+#let _draw(src, sz, stroke, spacing, font, palette) = {
   let txt = if font == auto {
     text.with(size: sz, top-edge: "cap-height", bottom-edge: "baseline")
   } else {
@@ -25,7 +25,7 @@
 
   // Pass 1: collect every label and measure it with the real font.
   let segs = str(_plugin.labels(bytes(src))).split("\n").filter(s => s != "")
-  let cfg = ("size=" + str(sz / 1pt), "spacing=" + str(spacing))
+  let cfg = ("size=" + str(sz / 1pt), "spacing=" + str(spacing), "palette=" + palette)
   if stroke != auto { cfg.push("stroke=" + str(stroke / 1pt)) }
   for s in segs {
     cfg.push(str(measure(txt(s)).width / 1pt) + "\t" + s)
@@ -64,6 +64,8 @@
 ///   natural size, labels in the diagram have exactly this size.
 /// - spacing (float): Node spacing factor; does not affect the text size.
 /// - stroke (auto, length): Line width. `auto` is 8% of the text size.
+/// - palette (str): `"gray"` for black-and-white printing, `"color"` for color
+///   fills and edges.
 /// - body (str, content): The DSL source, as a string or a raw block.
 /// -> content
 #let ds(
@@ -72,16 +74,17 @@
   size: auto,
   spacing: 1.0,
   stroke: auto,
+  palette: "gray",
   body,
 ) = context {
   let src = _source(body)
   let sz = if size == auto { text.size } else { size }.to-absolute()
   let st = if stroke == auto { auto } else { stroke.to-absolute() }
-  let (img, w) = _draw(src, sz, st, spacing, font)
+  let (img, w) = _draw(src, sz, st, spacing, font, palette)
   // Redraw with proportionally larger text and strokes instead of scaling an image.
   let redraw(target) = {
     let r = target / w
-    _draw(src, sz * r, if st == auto { auto } else { st * r }, spacing, font).first()
+    _draw(src, sz * r, if st == auto { auto } else { st * r }, spacing, font, palette).first()
   }
   if width == auto {
     img

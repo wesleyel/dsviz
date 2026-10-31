@@ -1,4 +1,4 @@
-#import "@preview/dsviz:0.2.1": ds
+#import "@preview/dsviz:0.2.2": ds
 #set page(width: auto, height: auto, margin: 10pt, fill: white)
 #set text(size: 10pt)
 #show raw.where(lang: "ds"): ds

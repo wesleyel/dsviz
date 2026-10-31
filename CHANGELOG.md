@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-31
+
+### Fixed
+
+- Three-digit keys in tree and graph nodes stay circular instead of turning into rectangles.
+
 ## [0.2.1] - 2026-10-31
 
 ### Changed

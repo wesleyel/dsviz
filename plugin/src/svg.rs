@@ -913,12 +913,12 @@ impl<'a> Canvas<'a> {
         }
     }
 
-    /// 圆形结点的默认形状：短标签用圆，长标签用胶囊形。
+    /// 圆形结点的默认形状：短标签（含三位数）用圆，长标签用矩形。
     pub fn node_shape(&self, text: &str) -> Shape {
         let w = self.w(text);
         let r = self.em * 0.9;
-        if w <= self.em * 1.3 {
-            Shape::Circle(r.max(w / 2.0 + self.em * 0.3))
+        if w <= self.em * 1.85 {
+            Shape::Circle(r.max(w / 2.0 + self.em * 0.2))
         } else {
             Shape::Rect {
                 hw: w / 2.0 + self.em * 0.55,
@@ -1048,6 +1048,16 @@ mod tests {
         assert_eq!(split_sub("_"), ("_".into(), "".into()));
         assert_eq!(split_sub("a\\_b"), ("a_b".into(), "".into()));
         assert_eq!(split_sub("a_"), ("a_".into(), "".into()));
+    }
+
+    #[test]
+    fn three_digit_keys_stay_circular() {
+        let cfg = Config::default();
+        let m = Meas::from_cfg(&cfg);
+        let cv = Canvas::new(&cfg, &m);
+        assert!(matches!(cv.node_shape("7"), Shape::Circle(_)));
+        assert!(matches!(cv.node_shape("100"), Shape::Circle(_)));
+        assert!(matches!(cv.node_shape("root node"), Shape::Rect { .. }));
     }
 
     #[test]
